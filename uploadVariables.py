@@ -18,7 +18,8 @@ if args.inputFolder: rootdir = args.inputFolder
 else:
     rootdir = '.'
 
-fullLocale = re.compile(r"[a-z_A-Z]")
+fullLocale = re.compile(r"[a-z-A-Z]")
+fullLocale2 = re.compile(r"[a-z_A-Z]")
 partLocale = re.compile(r"[a-z]")
 cleanDir = re.compile(r"[./]")
 
@@ -34,7 +35,8 @@ def sendVariables(locale,translations):
 def formatLocale(localeFolder):
 
     #if the locale matches the format `en-US`
-    if fullLocale.match(localeFolder):
+    #print(localeFolder)
+    if fullLocale.search(localeFolder) is not None:
 
         temp = localeFolder.split('-')
         tempLocale = temp[0]+ '_' + temp[1]
@@ -44,6 +46,11 @@ def formatLocale(localeFolder):
             if tempLocale == locale:
                 return tempLocale
 
+    #if the locale matches the format `en_US`
+    elif fullLocale2.search(localeFolder) is not None:
+
+        return localeFolder
+
     else: print("Folder naming format failed to meet criteria")
 
 def main():
@@ -52,12 +59,14 @@ def main():
     for subdir, dirs, files in os.walk(rootdir):
 
         for file in files:
-            subDir = cleanDir.sub("", subdir)
+            #print(subdir, dirs)
+            #subDir = cleanDir.sub("", subdir)
+            subDir = subdir[-5:]
             #print(subDir, file)
 
             #check that the file is a json file, and thus should be read in
             if file.endswith('.json'):
-                pathToFile = rootdir + '/' + subDir + '/' + file
+                pathToFile = subdir + '/' + file
                 #print("Path to file: {}".format(pathToFile))
                 with open(pathToFile) as f:
                     translations = json.load(f)
