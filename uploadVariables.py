@@ -1,12 +1,13 @@
 import sys, argparse, os, re, requests, json
 from requests.auth import HTTPBasicAuth
+from urllib.error import HTTPError
 
 #parse input arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('-i','--inputFolder', help='Custom input folder')
 parser.add_argument('-t','--tenantAlias', help='The tenant alias to use', required=True)
 parser.add_argument('-a','--apiKey', help='the API key for the tenant', required=True)
-parser.add_argument('-l','--locales', help='locales to upload variables for',nargs='+', required=True)
+parser.add_argument('-l','--locales', help='locales to upload variables for',nargs='+')
 args = parser.parse_args()
 
 inputLocales = []
@@ -18,9 +19,12 @@ if args.inputFolder: rootdir = args.inputFolder
 else:
     rootdir = '.'
 
-fullLocale = re.compile(r"[a-z-A-Z]")
-fullLocale2 = re.compile(r"[a-z_A-Z]")
-partLocale = re.compile(r"[a-z]")
+# fullLocale = re.compile(r"[a-z-A-Z]")
+dashLocale = re.compile(r"[a-z]{2}-[A-Z]{2}")
+underscoreLocale = re.compile(r"[a-z]{2}_[A-Z]{2}")
+lowercaseDashLocale = re.compile(r"[a-z]{2}-[a-z]{2}")
+lowercaseUnderscoreLocale = re.compile(r"[a-z]{2}_[a-z]{2}")
+partLocale = re.compile(r"[a-z]{2}")
 cleanDir = re.compile(r"[./]")
 
 def sendVariables(locale,translations):
@@ -31,58 +35,90 @@ def sendVariables(locale,translations):
     response = requests.put(url, auth=('', apiKey), data=json.dumps(translations), headers = headers)
 
     return response
-
-def formatLocale(localeFolder):
-
-    #if the locale matches the format `en-US`
-    #print(localeFolder)
-    if fullLocale.search(localeFolder) is not None:
-
-        temp = localeFolder.split('-')
-        tempLocale = temp[0]+ '_' + temp[1]
-
-        #if the folder in question is on the list of locales to be uploaded
-        for locale in inputLocales:
-            if tempLocale == locale:
-                return tempLocale
-
-    #if the locale matches the format `en_US`
-    elif fullLocale2.search(localeFolder) is not None:
-
-        return localeFolder
-
-    else: print("Folder naming format failed to meet criteria")
+    
+def getTranslations(fname, locale):
+    try:
+        # open the file
+        with open(fname) as openFile:
+            
+            # load the translations in from the file
+            translations = json.load(openFile)
+            
+            # print(translations)
+            
+            try:
+                # send the translations to the SaaSquatch using the locale `locale`
+                print("Sending variables for locale: {}".format(locale))
+                response = sendVariables(locale,translations)
+                response.raise_for_status()
+            
+            except HTTPError as e:
+                print("Unable to send variables: {}".format(e))
+                
+    except IOError:
+        print("Could not read file:", fname)
 
 def main():
+    
+    fnames = []
 
     #loop through each folder in the given folder
-    for subdir, dirs, files in os.walk(rootdir):
+    for root,d_names,f_names in os.walk(rootdir):    
+        
+        
+        # loop through all files in all the folders in the directory (and subdirectories) `rootdir`
+        for f in f_names:
+            fnames.append(os.path.join(root, f))
+            
+            # build the complete file name with path, relitive to the top level directory
+            fname = os.path.join(root, f)
 
-        for file in files:
-            #print(subdir, dirs)
-            #subDir = cleanDir.sub("", subdir)
-            subDir = subdir[-5:]
-            #print(subDir, file)
+            # print("fname = {}".format(fname))
+            
+            # pull out the name of the locale from the translation files parent directory
+            dirname = fname.split('/')
+            dirname = dirname[-2]
+            
+            # print("dirname: {}".format(dirname))
 
-            #check that the file is a json file, and thus should be read in
-            if file.endswith('.json'):
-                pathToFile = subdir + '/' + file
-                #print("Path to file: {}".format(pathToFile))
-                with open(pathToFile) as f:
-                    translations = json.load(f)
-
-                #lookup and return which desired locales match this folder
-                locale = formatLocale(subDir)
-
-                if locale:
-                    try:
-                        print("Sending variables for locale: {}".format(locale))
-                        response = sendVariables(locale,translations)
-                        response.raise_for_status()
-                    except HTTPError as e:
-                        print("Unable to send variables: {}".format(e))
-
-                else: print("Unable to match folder: {} with a locale".format(subDir))
-
+            
+            # if the folder name/locale format is `en-US`, then convert it to `en_US` 
+            if dashLocale.match(dirname): 
+                
+                locale = dirname.replace("-", "_")
+            
+            # if the locale format is `en_US`, then leave the locale format as is
+            elif underscoreLocale.match(dirname): 
+                
+                locale = dirname
+            
+            # if the locale format is `en-us`, then conver it to `en_US`
+            elif lowercaseDashLocale.match(dirname): 
+                
+                locale = dirname.split("-")
+                locale[-1] = locale[-1].upper()
+                locale = locale[0] + "_" + locale[1]
+            
+            # if the locale format is `en_us`, then convert it to `en_US`
+            elif lowercaseUnderscoreLocale.match(dirname): 
+                
+                locale = dirname.split("_")
+                locale[-1] = locale[-1].upper()
+                
+                locale = locale[0] + "_" + locale[1]
+            
+            # if the locale format is `de`, then convert it to `de_DE`
+            elif partLocale.match(dirname): 
+                
+                locale = dirname + "_" + dirname.upper()
+                
+                
+            # print(locale)
+            
+            # if there are locales explicitly passed in as an arguement, and this locale is on that list, or if there are no explicitly passed locales, send it to SaaSquatch
+            if (len(inputLocales)>0 and locale in inputLocales) or len(inputLocales) == 0:
+                getTranslations(fname, locale)
+            
+            
 if __name__ == '__main__':
   main()
