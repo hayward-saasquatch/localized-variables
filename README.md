@@ -12,8 +12,48 @@ Script for uploading localized variables from crowdin into SaaSquatch
 3. Confirm that each locale's folder name include the required language and country information needed to upload it to SaaSquatch
 4. Run the script. The extracted translations folder either needs to be in the same place as the script, or the `inputFolder` arguement needs to be included
 
-`python3 uploadVariables.py -t test_alu125hh1si9w -a TEST_BHASKh5125Las5hL125oh3VbLmPxUSs -l cs_CZ de_CH de_DE dk_DK -i /folder/`
-  
+e.g. given a folder structure of:
+
+```bash
+├── de
+│   └── source.json
+├── en_CA
+│   └── source.json
+├── uploadVariables.py
+└── README.md
+```
+the `inputFolder` parameter `-i` can be ommited, or set to `./`
+
+
+```bash
+├── crowdin-project-name
+│    ├── de
+│    │   └── source.json
+│    └── en_CA
+│        └── source.json
+├── uploadVariables.py
+└── README.md
+```
+The `inputFolder` parameter `-i` should be set to `crowdin-project-name/`
+
+```bash
+├── crowdin-project-name
+│    ├── de
+│    │   └── source.json
+│    └── en_CA
+│        └── source.json
+└── localized-variables
+     ├── uploadVariables.py
+     └── README.md
+
+```
+The `inputFolder` parameter `-i` should be set to `../crowdin-project-name/`
+
+
+Putting the whole command together, this would look like:
+
+`python3 uploadVariables.py -t test_alu125hh1si9w -a TEST_BHASKh5125Las5hL125oh3VbLmPxUSs -l cs_CZ de_CH de_DE dk_DK -i folder/`
+
 #### Options:
 - `-t`,`--tenantAlias`: The tenant alias to use. Required.
 - `-a`,`--apiKey`: The API key for the tenant. Required.

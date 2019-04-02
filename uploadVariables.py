@@ -79,8 +79,13 @@ def main():
             dirname = fname.split('/')
             dirname = dirname[-2]
             
-            # print("dirname: {}".format(dirname))
+            # print("dirname: {} - filename: {}".format(dirname, fname))
+            
+            # if fname.endswith("source.json"):
+            #     print("this is a folder with translations")
+            # else: print("no translations found in folder")
 
+            locale = None
             
             # if the folder name/locale format is `en-US`, then convert it to `en_US` 
             if dashLocale.match(dirname): 
@@ -115,10 +120,16 @@ def main():
                 
             # print(locale)
             
-            # if there are locales explicitly passed in as an arguement, and this locale is on that list, or if there are no explicitly passed locales, send it to SaaSquatch
-            if (len(inputLocales)>0 and locale in inputLocales) or len(inputLocales) == 0:
-                getTranslations(fname, locale)
-            
+            # if the folder name has a readable locale, and the contents of the folder includes a file called `source.json`
+            if locale and fname.endswith("source.json"):
+                
+                # if there are locales explicitly passed in as an arguement, and this locale is on that list, or if there are no explicitly passed locales, send it to SaaSquatch
+                if (len(inputLocales)>0 and locale in inputLocales) or len(inputLocales) == 0:
+                    getTranslations(fname, locale)
+                else:
+                    print("Locale {} is not in the list of explicit locales: {}".format(inputLocales))
+            # else:
+            #     print("No locales found.")
             
 if __name__ == '__main__':
   main()
